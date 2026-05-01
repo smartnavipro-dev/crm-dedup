@@ -314,11 +314,11 @@ elif st.session_state.step == 2:
         key="threshold_slider",
     )
     if threshold >= 90:
-        st.caption(f"🔵 現在 {threshold}%：「{name_col}」をほぼ完全一致のみで検出します。見逃しが増えます。")
+        st.caption(f"🔵 現在 {threshold}%：「{name_col}」がほぼ完全一致するもののみ検出します。表記ゆれがあると見逃す可能性があります。")
     elif threshold >= 78:
-        st.caption(f"🟢 現在 {threshold}%（推奨）：「{name_col}」の語順違い・法人格の有無を考慮して検出します。")
+        st.caption(f"🟢 現在 {threshold}%（推奨）：「{name_col}」の軽微な表記ゆれを吸収しつつ、無関係な候補を除外できるバランスです。")
     else:
-        st.caption(f"🟡 現在 {threshold}%：「{name_col}」を広めに検出します。関係のない候補が混じる可能性があります。")
+        st.caption(f"🟡 現在 {threshold}%：「{name_col}」を広めに検出します。無関係な候補が混じる可能性があります。")
 
     # ── しきい値の可視化（実データのペアをリアルタイム表示） ──────────
     name_values = df[name_col].fillna("").astype(str).tolist()
