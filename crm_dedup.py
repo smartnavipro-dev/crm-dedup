@@ -316,7 +316,7 @@ elif st.session_state.step == 2:
     if threshold >= 90:
         st.caption(f"🔵 現在 {threshold}%：ほぼ完全一致のみ検出します。表記ゆれがある場合は見逃す可能性があります。")
     elif threshold >= 78:
-        st.caption(f"🟢 現在 {threshold}%（推奨）：軽微な表記ゆれを吸収しつつ、無関係な候補を除外できるバランスです。")
+        st.caption(f"🟢 現在 {threshold}%（推奨）：多少の表記ゆれがあっても検出できます。精度と網羅性のバランスが取れた設定です。")
     else:
         st.caption(f"🟡 現在 {threshold}%：広めに検出します。無関係な候補が混じる可能性があります。")
 
