@@ -301,10 +301,10 @@ elif st.session_state.step == 2:
     col_a, col_b = st.columns(2)
     with col_a:
         name_col = st.selectbox(
-            "名前列（ファジーマッチ）",
+            "【チェック項目】重複を調べる列",
             cols,
             index=0,
-            help="会社名・担当者名など、文字列の類似度で重複を検出する主列",
+            help="この列の値が似ているレコードを重複候補として検出します。会社名・担当者名など主となる列を選んでください。",
         )
     with col_b:
         id_options = ["（なし）"] + cols
@@ -314,15 +314,15 @@ elif st.session_state.step == 2:
                 id_default = id_options.index(candidate)
                 break
         id_col_raw = st.selectbox(
-            "ID列（削除リスト出力に使用）",
+            "【マスターキー】削除リストに出力する列",
             id_options,
             index=id_default,
-            help="削除対象をリストアップするときに使う一意キー列",
+            help="レビュー後に出力される delete_ids.csv に書き出す列です。CRMで削除操作に使う主キー（会員IDなど）を選ぶと便利です。不要なら「なし」でOK。",
         )
         id_col = None if id_col_raw == "（なし）" else id_col_raw
 
     threshold = st.slider(
-        "名前の類似度しきい値（低くすると広く検出、高くすると厳格に検出）",
+        "【感度】数値が低いほど広く検出・高いほど厳格に検出",
         min_value=60,
         max_value=100,
         value=st.session_state.name_threshold,
@@ -330,6 +330,51 @@ elif st.session_state.step == 2:
         format="%d%%",
         key="threshold_slider",
     )
+
+    # ── しきい値の可視化（実データのペアをリアルタイム表示） ──────────
+    name_values = df[name_col].fillna("").astype(str).tolist()
+    n_sample = min(len(name_values), 50)
+    sample_pairs = []
+    for i, j in itertools.combinations(range(n_sample), 2):
+        a, b = name_values[i], name_values[j]
+        if not a.strip() or not b.strip():
+            continue
+        score = smart_ratio(a, b)
+        if score >= 40:
+            sample_pairs.append((a, b, int(score)))
+    sample_pairs.sort(key=lambda x: -x[2])
+
+    detected_pairs   = [(a, b, s) for a, b, s in sample_pairs if s >= threshold]
+    borderline_pairs = [(a, b, s) for a, b, s in sample_pairs if threshold - 15 <= s < threshold]
+
+    col_det, col_brd = st.columns(2)
+    with col_det:
+        st.markdown(
+            f'<div style="background:#F0FFF4;border:1px solid #00C851;border-radius:6px;'
+            f'padding:0.6rem;text-align:center">'
+            f'✅ <b>検出される候補</b><br>'
+            f'<span style="font-size:1.6rem;font-weight:bold;color:#00713A">{len(detected_pairs)}件</span>'
+            f'</div>', unsafe_allow_html=True
+        )
+    with col_brd:
+        st.markdown(
+            f'<div style="background:#FFFBEB;border:1px solid #F59E0B;border-radius:6px;'
+            f'padding:0.6rem;text-align:center">'
+            f'⚠️ <b>ギリギリ外れているペア</b><br>'
+            f'<span style="font-size:1.6rem;font-weight:bold;color:#B45309">{len(borderline_pairs)}件</span>'
+            f'</div>', unsafe_allow_html=True
+        )
+
+    if sample_pairs:
+        with st.expander("実際のデータで確認（スライダーを動かすと変わります）"):
+            for a, b, s in detected_pairs[:5]:
+                st.markdown(f"✅ `{a}` × `{b}` → **{s}%**")
+            if borderline_pairs:
+                st.caption("── 以下は現在スルーされているが近いペア（感度を下げると検出される） ──")
+                for a, b, s in borderline_pairs[:3]:
+                    st.markdown(f"⚠️ `{a}` × `{b}` → **{s}%**")
+            if not detected_pairs and not borderline_pairs:
+                st.caption("この感度では似ているペアが見つかりませんでした。感度を下げてみてください。")
 
     st.divider()
 
