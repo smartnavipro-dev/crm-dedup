@@ -314,7 +314,7 @@ elif st.session_state.step == 2:
         key="threshold_slider",
     )
     if threshold >= 90:
-        st.caption(f"🔵 現在 {threshold}%：ほぼ完全一致のみ検出します。表記ゆれがある場合は見逃す可能性があります。")
+        st.caption(f"🔵 現在 {threshold}%：ほぼ完全一致のみ検出します。細かい違いがある場合は見逃す可能性があります。")
     elif threshold >= 78:
         st.caption(f"🟢 現在 {threshold}%（推奨）：多少の違いがあっても検出できます。精度と網羅性のバランスが取れた設定です。")
     else:
@@ -359,11 +359,11 @@ elif st.session_state.step == 2:
             for a, b, s in detected_pairs[:5]:
                 st.markdown(f"✅ `{a}` × `{b}` → **{s}%**")
             if borderline_pairs:
-                st.caption("── 以下は現在スルーされているが近いペア（感度を下げると検出される） ──")
+                st.caption("── 以下は現在スルーされているが近いペア（スライダーを左に動かすと検出される） ──")
                 for a, b, s in borderline_pairs[:3]:
                     st.markdown(f"⚠️ `{a}` × `{b}` → **{s}%**")
             if not detected_pairs and not borderline_pairs:
-                st.caption("この感度では似ているペアが見つかりませんでした。感度を下げてみてください。")
+                st.caption("似ているペアが見つかりませんでした。スライダーを左に動かしてみてください。")
 
     st.divider()
 
@@ -552,6 +552,7 @@ elif st.session_state.step == 4:
     claude_results = st.session_state.claude_results
     cluster_reasons = st.session_state.cluster_reasons
     decisions = st.session_state.decisions
+    name_col = st.session_state.name_col
     idx = st.session_state.review_idx
     total = len(clusters)
     reviewed = len(decisions)
@@ -573,7 +574,7 @@ elif st.session_state.step == 4:
     has_ai = keep_hint is not None
 
     # ── グループ情報 ──────────────────────────────────────────────
-    st.markdown(f"**グループ {idx + 1} / {total}**　｜　{len(cluster)} 件の候補")
+    st.markdown(f"**グループ {idx + 1} / {total}**　｜　{len(cluster)} 件のレコード")
 
     # 検出理由バナー
     detect_reasons = cluster_reasons.get(idx, [])
@@ -615,7 +616,12 @@ elif st.session_state.step == 4:
     st.markdown("---")
     st.markdown("**このグループをどう処理しますか？**")
 
-    row_options = [f"レコード {r + 1}" for r in cluster]
+    row_options = []
+    for r in cluster:
+        name_val = df.iloc[r].get(name_col, "")
+        name_val = "" if pd.isna(name_val) else str(name_val).strip()
+        label = f"レコード {r + 1}" + (f"（{name_val}）" if name_val else "")
+        row_options.append(label)
     default_radio = min(keep_hint if keep_hint is not None else 0, len(cluster) - 1)
     selected_label = st.radio(
         "残すレコードを選択",
@@ -640,7 +646,7 @@ elif st.session_state.step == 4:
             st.session_state.review_idx = idx + 1
             st.rerun()
     with btn3:
-        if st.button("⏭ スキップ", key=f"skip_{idx}"):
+        if st.button("⏭ スキップ", key=f"skip_{idx}", help="判断を保留します。スキップしたグループは全件残ります。"):
             decisions[idx] = {"action": "skip", "cluster": cluster}
             st.session_state.decisions = decisions
             st.session_state.review_idx = idx + 1
@@ -703,9 +709,19 @@ elif st.session_state.step == 5:
             st.dataframe(df_deleted, use_container_width=True)
 
     st.divider()
-    if st.button("🔁 最初からやり直す"):
-        current_counter = st.session_state.rule_counter  # widgetキー重複防止のため保持
-        for k, v in defaults.items():
-            st.session_state[k] = v
-        st.session_state.rule_counter = current_counter
-        st.rerun()
+    c1, c2 = st.columns(2)
+    with c1:
+        if st.button("← レビューに戻る"):
+            if st.session_state.decisions:
+                last_idx = max(st.session_state.decisions.keys())
+                del st.session_state.decisions[last_idx]
+                st.session_state.review_idx = last_idx
+            st.session_state.step = 4
+            st.rerun()
+    with c2:
+        if st.button("🔁 最初からやり直す"):
+            current_counter = st.session_state.rule_counter  # widgetキー重複防止のため保持
+            for k, v in defaults.items():
+                st.session_state[k] = v
+            st.session_state.rule_counter = current_counter
+            st.rerun()
