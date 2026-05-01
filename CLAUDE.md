@@ -12,6 +12,7 @@ Streamlit製。公開済み。
 ```
 C:\Users\chanc\crm_dedup\
   crm_dedup.py        ← メインアプリ（v1.2）
+  note_article.md     ← note/X告知記事ドラフト（ファクトチェック済み・未投稿）
   requirements.txt    ← 依存パッケージ
   .env.example        ← APIキーのサンプル（実際の.envはgit管理外）
   .gitignore          ← .env・CSVを除外
@@ -36,10 +37,10 @@ streamlit run crm_dedup.py
 | ステップ | 内容 |
 |---|---|
 | Step 1 アップロード | CSV投入（UTF-8/Shift-JIS/CP932自動判定、最大5,000行）。サンプルデータボタンあり |
-| Step 2 ルール設定 | 名前列・ID列・類似度しきい値スライダー・追加マッチングルール（動的追加/削除） |
+| Step 2 ルール設定 | チェック項目・類似度しきい値スライダー（78%推奨）・追加マッチングルール（動的追加/削除）・リアルタイムペア可視化 |
 | Step 3 解析 | fuzzy検出 → Claude検証（オプション） → クラスター理由を集約 |
 | Step 4 レビュー | サイドバイサイド表示・検出理由バナー・残す/別人/スキップ・前グループに戻る |
-| Step 5 エクスポート | cleaned.csv（元と同列構成）+ delete_ids.csv（削除対象IDリスト）|
+| Step 5 エクスポート | cleaned.csv（元と同列構成）+ deleted_records.csv（削除対象・全列）|
 
 ## 公開方針（C案）
 - APIキーなし → fuzzy-onlyモードで全機能動作（コストゼロ）
@@ -107,6 +108,52 @@ pair_reasons = {}  # key: (min_i, max_j) → list[str]
 cluster_reasons = {}  # key: verified_cluster_index → list[str]
 ```
 Claudeがグループを除外した後でも、pair_reasonsは元行インデックスベースなので正しくマッピングできる。
+
+---
+
+## UI/UX改善ノート（2026-05-02）
+
+### ① スライダーラベルとキャプション
+ラベルを「感度」→「どこまで似ていれば重複候補とするか」に変更。
+スライダー値に応じて動的キャプションを表示：
+
+| 値 | 表示 |
+|---|---|
+| 90%〜 | 🔵 ほぼ完全一致のみ検出します。細かい違いがある場合は見逃す可能性があります。 |
+| 78〜89% | 🟢（推奨）多少の違いがあっても検出できます。精度と網羅性のバランスが取れた設定です。 |
+| 〜77% | 🟡 広めに検出します。無関係な候補が混じる可能性があります。 |
+
+**注意**: キャプションに列名を埋め込まない。「メールアドレスの語順違い」のように列種類によっては意味不明になるため。
+
+### ② レビュー画面ラジオボタンに名前値を表示
+選択肢が「レコード 1」だけでは選びにくいため、名前列の値を添える。
+
+```python
+name_val = df.iloc[r].get(name_col, "")
+name_val = "" if pd.isna(name_val) else str(name_val).strip()
+label = f"レコード {r + 1}" + (f"（{name_val}）" if name_val else "")
+```
+
+### ③ スキップボタンの挙動を明示
+`help="判断を保留します。スキップしたグループは全件残ります。"` を追加。
+スキップ・別人・全員残す の3アクションはいずれも delete_row_indices に追加しない（削除なし）。
+
+### ④ エクスポート画面に「← レビューに戻る」ボタン追加
+最後の判断を取り消して直前のグループに戻れる。
+
+```python
+if st.button("← レビューに戻る"):
+    if st.session_state.decisions:
+        last_idx = max(st.session_state.decisions.keys())
+        del st.session_state.decisions[last_idx]
+        st.session_state.review_idx = last_idx
+    st.session_state.step = 4
+    st.rerun()
+```
+
+### ⑤ キャッチコピーとサイドバーマニュアル
+- タイトル直下に1行キャッチコピーを追加
+- サイドバーに `📖 使い方` expander を常設（どのステップにいても参照可能）
 
 ---
 
