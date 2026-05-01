@@ -226,7 +226,6 @@ defaults = {
     "step": 1,
     "df": None,
     "name_col": None,
-    "id_col": None,
     "name_threshold": DEFAULT_THRESHOLD,
     "match_rules": [],
     "rule_counter": 0,
@@ -298,28 +297,12 @@ elif st.session_state.step == 2:
 
     # ── 基本設定 ──────────────────────────────────────────────────
     st.markdown("#### 基本設定")
-    col_a, col_b = st.columns(2)
-    with col_a:
-        name_col = st.selectbox(
-            "【チェック項目】重複を調べる列",
-            cols,
-            index=0,
-            help="この列の値が似ているレコードを重複候補として検出します。会社名・担当者名など主となる列を選んでください。",
-        )
-    with col_b:
-        id_options = ["（なし）"] + cols
-        id_default = 0
-        for candidate in ["id", "ID", "Id", "会員ID", "顧客ID", "customer_id"]:
-            if candidate in cols:
-                id_default = id_options.index(candidate)
-                break
-        id_col_raw = st.selectbox(
-            "【マスターキー】削除リストに出力する列",
-            id_options,
-            index=id_default,
-            help="レビュー後に出力される delete_ids.csv に書き出す列です。CRMで削除操作に使う主キー（会員IDなど）を選ぶと便利です。不要なら「なし」でOK。",
-        )
-        id_col = None if id_col_raw == "（なし）" else id_col_raw
+    name_col = st.selectbox(
+        "【チェック項目】重複を調べる列",
+        cols,
+        index=0,
+        help="この列の値が似ているレコードを重複候補として検出します。会社名・担当者名など主となる列を選んでください。",
+    )
 
     threshold = st.slider(
         "【感度】数値が低いほど広く検出・高いほど厳格に検出",
@@ -446,14 +429,8 @@ elif st.session_state.step == 2:
     st.divider()
 
     # プレビュー
-    seen = set()
-    preview_cols = []
-    for c in [name_col] + ([id_col] if id_col else []) + cols:
-        if c not in seen:
-            seen.add(c)
-            preview_cols.append(c)
     st.markdown("**プレビュー（先頭5件）**")
-    st.dataframe(df[preview_cols].head(5), use_container_width=True)
+    st.dataframe(df.head(5), use_container_width=True)
 
     c1, c2 = st.columns([1, 4])
     with c1:
@@ -463,7 +440,6 @@ elif st.session_state.step == 2:
     with c2:
         if st.button("解析開始 →", type="primary"):
             st.session_state.name_col = name_col
-            st.session_state.id_col = id_col
             st.session_state.name_threshold = threshold
             st.session_state.step = 3
             st.rerun()
@@ -675,7 +651,6 @@ elif st.session_state.step == 4:
 # ═══════════════════════════════════════════════
 elif st.session_state.step == 5:
     df = st.session_state.df
-    id_col = st.session_state.id_col
     decisions = st.session_state.decisions
 
     st.subheader("⑤ エクスポート")
@@ -701,23 +676,21 @@ elif st.session_state.step == 5:
 
     cleaned_csv_bytes = df_cleaned.to_csv(index=False).encode("utf-8-sig")
     st.download_button(
-        label="📥 cleaned.csv をダウンロード（整理済みデータ・元と同じ列構成）",
+        label="📥 cleaned.csv をダウンロード（重複除去済み・元と同じ列構成）",
         data=cleaned_csv_bytes,
         file_name="cleaned.csv",
         mime="text/csv",
     )
 
-    if id_col and len(df_deleted) > 0:
-        df_delete_ids = df_deleted[[id_col]].rename(columns={id_col: "delete_id"})
-        delete_csv_bytes = df_delete_ids.to_csv(index=False).encode("utf-8-sig")
+    if len(df_deleted) > 0:
+        deleted_csv_bytes = df_deleted.to_csv(index=False).encode("utf-8-sig")
         st.download_button(
-            label=f"📥 delete_ids.csv をダウンロード（削除対象 {id_col} 一覧）",
-            data=delete_csv_bytes,
-            file_name="delete_ids.csv",
+            label=f"📥 deleted_records.csv をダウンロード（削除対象 {len(df_deleted)}件・全列）",
+            data=deleted_csv_bytes,
+            file_name="deleted_records.csv",
             mime="text/csv",
         )
-    elif len(df_deleted) > 0:
-        st.caption("ID列が未設定のため delete_ids.csv は出力されません。cleaned.csv をそのままご利用ください。")
+        st.caption("deleted_records.csv には削除対象の全データが入っています。CRMで照合しながら削除する際にご利用ください。")
 
     if len(df_deleted) > 0:
         with st.expander("削除対象レコードのプレビュー"):
