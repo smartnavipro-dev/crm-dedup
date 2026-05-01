@@ -3,7 +3,10 @@
 ## 概要
 b2b-pain-hunterで検出した「CRMの重複データ問題」を解決するAIツール。
 Pattern A戦略（無料で配布 → 信頼 → 有償依頼）の第一弾。
-Streamlit製。ローカル動作を基本とし、Streamlit Cloudへの公開を想定。
+Streamlit製。公開済み。
+
+**デプロイ先**: https://crm-dedup.streamlit.app/
+**GitHubリポジトリ**: https://github.com/smartnavipro-dev/crm-dedup
 
 ## ファイル構成
 ```
