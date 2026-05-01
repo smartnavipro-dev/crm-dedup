@@ -305,7 +305,7 @@ elif st.session_state.step == 2:
     )
 
     threshold = st.slider(
-        "【感度】数値が低いほど広く検出・高いほど厳格に検出",
+        "どこまで似ていれば重複候補とするか",
         min_value=60,
         max_value=100,
         value=st.session_state.name_threshold,
@@ -313,6 +313,12 @@ elif st.session_state.step == 2:
         format="%d%%",
         key="threshold_slider",
     )
+    if threshold >= 90:
+        st.caption(f"🔵 現在 {threshold}%：ほぼ完全一致のみ検出。「山田商事」と「山田商事株式会社」は検出、「山田商事」と「山田電機」はスルー。見逃しが増えます。")
+    elif threshold >= 78:
+        st.caption(f"🟢 現在 {threshold}%（推奨）：「株式会社山田商事」と「山田商事株式会社」のような語順違い・法人格の有無を検出します。")
+    else:
+        st.caption(f"🟡 現在 {threshold}%：広めに検出。関係のない会社が候補に混じる可能性があります。レビューで確認しながら進めてください。")
 
     # ── しきい値の可視化（実データのペアをリアルタイム表示） ──────────
     name_values = df[name_col].fillna("").astype(str).tolist()
