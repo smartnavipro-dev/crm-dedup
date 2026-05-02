@@ -72,7 +72,7 @@ https://crm-dedup.streamlit.app/
 
 「CRM全体のデータ品質を見直したい」「重複が発生しにくい運用設計をしたい」という方は、お気軽にご連絡ください。
 
-→ X（Twitter）DM または【連絡先をここに追記】
+→ X（Twitter）: @SmartNaviPro までDMください
 
 ---
 
